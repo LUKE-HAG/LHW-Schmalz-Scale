@@ -1,0 +1,164 @@
+from machine import UART, Pin
+import time
+
+# GPIO Pin Setup
+led_red = Pin(11, Pin.OUT)  # Red LED
+led_yellow = Pin(12, Pin.OUT)  # Yellow LED
+led_green = Pin(13, Pin.OUT)  # Green LED
+led_continue = Pin(14, Pin.OUT)  # LED for Continue Action
+led_start_pause = Pin(17, Pin.OUT)  # LED for Start/Pause Action
+
+# UART Setup for Scale
+uart = UART(1, baudrate=19200, tx=Pin(4), rx=Pin(5))
+
+# Variables
+carrier_weight = None
+part_weight = None
+previous_weight = 0.0
+current_weight = 0.0
+process_paused = True
+error_state = False
+absolute_count = 0
+tolerance = 0.1  # 10% tolerance for weight changes
+removed_parts_weight = 0.0  # To track removed parts weight
+min_weight_threshold = 1.0  # Minimum weight change to consider
+
+# Functions
+def send_takt(parts_count=1):
+    global absolute_count
+    absolute_count += parts_count
+    print(f"Takt sent. Parts added: {parts_count}. Absolute count = {absolute_count}")
+
+def reset_system():
+    global carrier_weight, part_weight, process_paused, error_state, removed_parts_weight
+    carrier_weight = None
+    part_weight = None
+    process_paused = True
+    error_state = False
+    removed_parts_weight = 0.0
+    led_red.on()
+    led_yellow.off()
+    led_green.off()
+    led_continue.off()
+    led_start_pause.off()
+    print("System reset. Please start the process again.")
+
+def validate_weight_change(weight_change, reference_weight):
+    return reference_weight * (1 - tolerance) <= weight_change <= reference_weight * (1 + tolerance)
+
+def read_scale():
+    if uart.any():
+        data = uart.read()
+        if data:
+            try:
+                decoded_data = data.decode('ascii').strip()
+                weight_str = decoded_data.split()[0]
+                print(f"Recorded Weight: {weight_str}")
+                return float(weight_str)
+            except (ValueError, IndexError):
+                print(f"Invalid data received: {decoded_data}")
+    return None
+
+# Main Process Logic
+def main():
+    global carrier_weight, part_weight, previous_weight, process_paused, error_state, removed_parts_weight
+
+    reset_system()
+
+    while True:
+        if error_state:
+            led_red.on()  # Blink red LED in error state
+            time.sleep(0.5)
+            led_red.off()
+            time.sleep(0.5)
+            continue
+
+        current_weight = read_scale()
+        if current_weight is None:
+            continue
+
+        weight_change = current_weight - previous_weight
+
+        # Ignore insignificant weight changes
+        if abs(weight_change) < min_weight_threshold:
+            continue
+
+        # Step 1: Record Carrier Weight
+        if carrier_weight is None:
+            #print("Waiting for carrier placement...")
+            if weight_change > 0:  # Carrier placed on scale
+                led_continue.on()
+                #time.sleep(1)  # Simulate confirmation delay
+                carrier_weight = current_weight
+                previous_weight = current_weight
+                led_continue.off()
+                print(f"Carrier weight recorded: {carrier_weight} g")
+
+        # Step 2: Record Part Weight
+        elif part_weight is None:
+            #print("Waiting for part placement...")
+            if weight_change > 0:  # Part is placed on the scale
+                led_continue.on()
+                #time.sleep(1)  # Simulate confirmation delay
+                part_weight = weight_change
+                previous_weight = current_weight
+                led_continue.off()
+                led_red.off()
+                led_green.on()  # Immediately go to running state
+                process_paused = False
+                print(f"Part weight recorded: {part_weight} g. Process started.")
+                send_takt()  # Initial takt for the part added during setup
+
+        # Step 3: Running Process
+        elif not process_paused:
+            if weight_change > 0:
+                # Calculate how many parts were added
+                parts_added = round(weight_change / part_weight)
+                if validate_weight_change(weight_change, parts_added * part_weight):
+                    send_takt(parts_added)
+                    previous_weight = current_weight
+                    print(f"Parts added: {parts_added}. Weight change: {weight_change} g.")
+            elif weight_change < 0 and weight_change > -3.5 * part_weight:
+                # Detect parts removed
+                parts_removed = round(abs(weight_change) / part_weight)
+                if validate_weight_change(abs(weight_change), parts_removed * part_weight):
+                    process_paused = True
+                    removed_parts_weight = abs(weight_change)
+                    led_green.off()
+                    led_yellow.on()
+                    print(f"Parts removed: {parts_removed}. Process paused. Weight change: {weight_change} g.")
+                    
+            elif weight_change < -3.5 * part_weight:
+                # Carrier Replacement
+                print("Carrier removed")
+                carrier_weight = current_weight
+                previous_weight = current_weight
+                print(f"Carrier weight recorded: {carrier_weight} g")
+
+        # Step 4: Resuming Process
+        elif process_paused:
+            if validate_weight_change(current_weight - previous_weight, removed_parts_weight):
+                # Parts replaced, resume process
+                removed_parts_weight = 0.0  # Reset removed parts tracking
+                process_paused = False
+                led_yellow.off()
+                led_green.on()
+                print("Parts replaced. Process resumed.")
+            elif validate_weight_change(current_weight - carrier_weight, part_weight):
+                # Added new parts after pausing
+                parts_added = round((current_weight - carrier_weight) / part_weight)
+                if parts_added > 0:
+                    send_takt(parts_added)
+                    previous_weight = current_weight
+                    process_paused = False
+                    led_yellow.off()
+                    led_green.on()
+                    print(f"Parts added after pause: {parts_added}. Process resumed.")
+
+        # Update weight for the next iteration
+        previous_weight = current_weight
+
+
+if __name__ == "__main__":
+    main()
+
