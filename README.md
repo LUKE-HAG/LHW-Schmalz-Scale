@@ -47,7 +47,7 @@ Program states:
     o	The green LED turns OFF.
     o	The yellow LED and start button LED turn ON.
     o	The operator confirms the new carrier weight by pressing the start button, and the system resumes operation (start button LED and yellow LED turn off, green LED turns on)
-6.	Error Handling:
+7.	Error Handling:
   •	If unexpected weights or inconsistencies are detected, the system enters an error state:
     o	The red LED blinks, and the system halts.
     o	The operator resets the system by removing all items from the scale.
