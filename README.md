@@ -1,4 +1,6 @@
-This code is used in the project deriving from a Master's Thesis. 
+View the README file as code
+
+The code in this repository is used in the project deriving from a Master's Thesis. 
 It is used to program a Raspberry Pi Pico W to take readings from a Scale and interpret them into takt signals. 
 
 The following is a description of the process which the code attempts to implement.
