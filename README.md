@@ -3,6 +3,9 @@ View the README file as code
 The code in this repository is used in the project deriving from a Master's Thesis. 
 It is used to program a Raspberry Pi Pico W to take readings from a Scale and interpret them into takt signals. 
 
+The Circuit Diagram of the Raspberry Pi is depicted in the attached image. 
+The wires going to the top of the diagram connect to the TX pin, VCC pin, and GND pin of the scale RS232 connection.
+
 The following is a description of the process which the code attempts to implement.
 
 LED States: 
