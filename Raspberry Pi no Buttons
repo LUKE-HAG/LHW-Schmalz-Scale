@@ -85,10 +85,8 @@ def main():
 
         # Step 1: Record Carrier Weight
         if carrier_weight is None:
-            #print("Waiting for carrier placement...")
             if weight_change > 0:  # Carrier placed on scale
                 led_continue.on()
-                #time.sleep(1)  # Simulate confirmation delay
                 carrier_weight = current_weight
                 previous_weight = current_weight
                 led_continue.off()
@@ -96,10 +94,8 @@ def main():
 
         # Step 2: Record Part Weight
         elif part_weight is None:
-            #print("Waiting for part placement...")
             if weight_change > 0:  # Part is placed on the scale
                 led_continue.on()
-                #time.sleep(1)  # Simulate confirmation delay
                 part_weight = weight_change
                 previous_weight = current_weight
                 led_continue.off()
@@ -127,23 +123,36 @@ def main():
                     led_green.off()
                     led_yellow.on()
                     print(f"Parts removed: {parts_removed}. Process paused. Weight change: {weight_change} g.")
+                else:
+                    print(f"Weight removed ERROR. Abs.Ct.= {absolute_count}, Weight Change= {weight_change}")
+                    error_state = True
                     
-            elif weight_change < -3.5 * part_weight:
+            elif weight_change <= -3.5 * part_weight:
                 # Carrier Replacement
-                print("Carrier removed")
-                carrier_weight = current_weight
-                previous_weight = current_weight
-                print(f"Carrier weight recorded: {carrier_weight} g")
-
+                if validate_weight_change(current_weight, carrier_weight):
+                    print("Carrier removed")
+                    carrier_weight = current_weight
+                    previous_weight = current_weight
+                    print(f"Carrier weight recorded: {carrier_weight} g")
+                else:
+                    print(f"Weight removed ERROR. Abs.Ct.= {absolute_count}, Weight Change= {weight_change}")
+                    error_state = True
+                
         # Step 4: Resuming Process
         elif process_paused:
-            if validate_weight_change(current_weight - previous_weight, removed_parts_weight):
-                # Parts replaced, resume process
-                removed_parts_weight = 0.0  # Reset removed parts tracking
-                process_paused = False
-                led_yellow.off()
-                led_green.on()
-                print("Parts replaced. Process resumed.")
+            if not removed_parts_weight == 0.0:
+                if validate_weight_change(current_weight - previous_weight, removed_parts_weight):
+                    # Parts replaced, resume process
+                    removed_parts_weight = 0.0  # Reset removed parts tracking
+                    process_paused = False
+                    led_yellow.off()
+                    led_green.on()
+                    print("All parts replaced. Process resumed.")
+                elif (current_weight - previous_weight) < (removed_parts_weight - part_weight):
+                    parts_replaced = round((current_weight - previous_weight) / part_weight)
+                    removed_parts_weight = removed_parts_weight - (current_weight - previous_weight)
+                    print(f"{parts_replaced} parts replaced. Waiting for rest.")
+                    previous_weight = current_weight
             elif validate_weight_change(current_weight - carrier_weight, part_weight):
                 # Added new parts after pausing
                 parts_added = round((current_weight - carrier_weight) / part_weight)
