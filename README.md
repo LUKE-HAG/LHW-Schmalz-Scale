@@ -4,6 +4,8 @@ It is used to program a Raspberry Pi Pico W to take readings from a Scale and in
 The Circuit Diagram of the Raspberry Pi is depicted in the attached image. 
 The wires going to the top of the diagram connect to the TX pin, VCC pin, and GND pin of the scale RS232 connection.
 
+The Rapsberry Pi Pico W was not able to process the code with the buttons (start/stop and continue) implemented. The code 'Raspberry Pi no buttons' was therefore adapted to this change. This code was tested in an industrial environment with success. The two versions of the code are not reflective of the same process. The code with no button integration has been optimized to work as is required.
+
 The following is a description of the process which the code attempts to implement.
 
 LED States: 
@@ -49,11 +51,11 @@ Program states:
   
   •	The system records the part weight and transitions to a ready for operation state:
   
-    o	The red LED turns OFF.
+    •	The red LED turns OFF.
     
-    o	The yellow LED turns ON (ready and paused state).
+    •	The yellow LED turns ON (ready and paused state).
     
-    o	The start button LED ON.
+    •	The start button LED ON.
     
 8.	Starting the Process:
 
@@ -69,31 +71,36 @@ Program states:
 
   •	Adding Parts to the carrier:
   
-    o	When the operator adds parts, the system detects the weight change and sends takt signals for each added part. The weight change detected by the scale must be within a certain margin of the initially recorded part weight.
+    •	When the operator adds parts, the system detects the weight change and sends takt signals for each added part. The weight change detected by the scale must be within a certain margin of the initially recorded part weight.
     
-    o	A variable for an absolute counter is implemented to count the total number of takts. Every time a takt is sent, the absolute counter is raised by one count. This counter is only reset when the Pi is reset. It acts as the counter of the MES system. 
+    •	A variable for an absolute counter is implemented to count the total number of takts. Every time a takt is sent, the absolute counter is raised by one count. This counter is only reset when the Pi is reset. It acts as the counter of the MES system. 
     
   •	Removing Parts to the carrier:
   
-    o	If one or several parts are removed, the system pauses:
+    •	If one or several parts are removed, the system pauses:
     
       	The green LED turns OFF.
       
       	The yellow LED turns ON.
       
-    o	The operator can place the parts back to resume automatically or press the start button to continue. If the weight that was removed from the carrier is replaced into the carrier (within a certain margin). If the start button is pressed, the parts are not to be placed into the carrier again as to not send repetitive takts. Any parts placed into the carrier subsequently trigger further takts. 
+    •	The operator can place the parts back to resume automatically or press the start button to continue. If the weight that was removed from the carrier is replaced into the carrier (within a certain margin). If the start button is pressed, the parts are not to be placed into the carrier again as to not send repetitive takts. Any parts placed into the carrier subsequently trigger further takts. 
     
   •	Carrier Replacement:
   
-    o	When a full carrier is replaced, the system detects the new carrier. The scale in AUTOPRINT mode does not send a weight signal if it is equal to zero. The next signal captured after removing the full carrier is the weight of the new, empty carrier. This reduction in weight (high multiple of the part weight) pauses the system.
+    •	When a full carrier is replaced, the system detects the new carrier. The scale in AUTOPRINT mode does not send a weight signal if it is equal to zero. The next signal captured after removing the full carrier is the weight of the new, empty carrier. This reduction in weight (high multiple of the part weight) pauses the system.
     
-    o	The green LED turns OFF.
+    •	The green LED turns OFF.
     
-    o	The yellow LED and start button LED turn ON.
+    •	The yellow LED and start button LED turn ON.
     
-    o	The operator confirms the new carrier weight by pressing the start button, and the system resumes operation (start button LED and yellow LED turn off, green LED turns on)
+    •	The operator confirms the new carrier weight by pressing the start button, and the system resumes operation (start button LED and yellow LED turn off, green LED turns on)
+    
 12.	Error Handling:
+    
   •	If unexpected weights or inconsistencies are detected, the system enters an error state:
-    o	The red LED blinks, and the system halts.
-    o	The operator resets the system by removing all items from the scale.
-    o	The operator has to start the carrier and part weighing process again. 
+  
+    •	The red LED blinks, and the system halts.
+    
+    •	The operator resets the system by removing all items from the scale.
+    
+    •	The operator has to start the carrier and part weighing process again. 
